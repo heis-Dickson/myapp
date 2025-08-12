@@ -9,10 +9,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return  MaterialApp(
+    return MaterialApp(
       theme: ThemeData(primarySwatch: Colors.blue),
       home: Home_Page(),
-    );  
+    );
   }
 }
 
@@ -26,6 +26,32 @@ class Home_Page extends StatefulWidget {
 class _Home_PageState extends State<Home_Page> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            FlutterLogo(size: 83),
+            Expanded(child: Text('Flutter App')),
+          ],
+        ),
+      ),
+      drawer: Drawer(),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(color: Colors.blue, height: 200),
+            Divider(),
+            Container(color: Colors.blue, height: 200),
+            Divider(),
+            Container(color: Colors.blue, height: 200),
+            Divider(),
+            Container(color: Colors.blue, height: 200),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const BottomAppBar(color: Colors.red),
+    );
   }
 }
