@@ -60,7 +60,17 @@ class _Home_PageState extends State<Home_Page> {
       },
       
       ),
-      bottomNavigationBar: const BottomAppBar(color: Colors.red),
+      bottomNavigationBar: const BottomAppBar(
+      color: Colors.red,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(icon: Icon(Icons.home, size: 34), onPressed: null),
+          IconButton(icon: Icon(Icons.settings, size: 34), onPressed: null),
+          IconButton(icon: Icon(Icons.search, size: 34), onPressed: null),
+      ],
+      ),
+    ),
     );
   }
 }
