@@ -1,106 +1,12 @@
-import 'dart:nativewrappers/_internal/vm/lib/ffi_patch.dart';
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:ffi';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-//blueprint for task
-class Task {
-  final String id;
-  final String name;
-  final bool completed;
-
-  Task({required this.id, required this.name, required this.completed});
-
-  factory Task.fromMap(String id, Map<String, dynamic> data) {
-    return Task(
-      id: id,
-      name: data['name'] ?? '',
-      completed: data['completed'] ?? false,
-    );
-  }
-}
-
-//Define a Task Service to handle Firestone operations
-class TaskService {
-  //Firestore instance in an alias
-  final FirebaseFirestore db = FirebaseFirestore.instance;
-
-  //Future that returns a list of tasks using factory method defined in task class
-  Future<List<Task>> fetchTasks() async {
-    //call get to retrieve all of the documents inside the collection
-    final snapshot = await db.collection('tasks').orderBy('timestamp').get();
-    //snapshot of all documents is being mapped to factory object template
-    return snapshot.docs
-        .map((doc) => Task.fromMap(doc.id, doc.data()))
-        .toList();
-  }
-
-  //another asynchronouse Future to add tasks to the firstore
-  Future<String> addTask(String name) async {
-    final newTask = {
-      'name': name,
-      'completed': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
-    final docRef = await db.collection('tasks').add(newTask);
-    return docRef.id;
-  }
-
-  //update task future
-  Future<void> updateTask(String id, bool completed) async {
-    await db.collection('tasks').doc(id).update({'completed': completed});
-  }
-
-  //Future is going to delete tasks
-  Future<void> deleteTasks(String id) async {
-    await db.collection('tasks').doc(id).delete();
-  }
-}
-
-//create a task provider to manage state
-class TaskProvider extends ChangeNotifier {
-  final TaskService taskService = TaskService();
-  List<Task> tasks = [];
-
-  //populates tasks list/array with documents from database
-  //notifies the root provider of stateful change
-  Future<void> loadTasks() async {
-    tasks = await taskService.fetchTasks();
-    notifyListeners();
-  }
-
-  Future<void> addTask(String name) async {
-    //check to see if name is not empty or null
-    if (name.trim().isNotEmpty) {
-      //add the trimmed task name to the databse
-      final id = await taskService.addTask(name.trim());
-      //adding the task name to the local list of task held in memory
-      tasks.add(Task(id: id, name: name, completed: false));
-      notifyListeners();
-    }
-  }
-
-  Future<void> updateTask(int index, bool completed) async {
-    //uses array index to find tasks
-    final task = tasks[index];
-    //update the task collection in the databases by id, using bool for completed
-    await taskService.updateTask(task.id, completed);
-    //updating the local tasks list
-    tasks[index] = Task(id: task.id, name: task.name, completed: completed);
-    notifyListeners();
-  }
-
-  Future<void> removeTask(int index) async {
-    //uses array index to find tasks
-    final task = tasks[index];
-    //delete the task from the collection
-    await taskService.deleteTasks(task.id);
-    //remote the task from the list in memory
-    tasks.removeAt(index);
-    notifyListeners();
-  }
-}
+import 'package:table_calendar/table_calendar.dart';
+import 'package:myapp/models/tasks.dart';
+import 'package:myapp/services/task_service.dart';
+import 'package:myapp/providers/task_provider.dart';
 
 class Home_Page extends StatefulWidget {
   const Home_Page({super.key});
@@ -110,10 +16,10 @@ class Home_Page extends StatefulWidget {
 }
 
 class _Home_PageState extends State<Home_Page> {
-  final TextEditingController namecontroller = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
 
   @override
-  void inistate() {
+  void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<TaskProvider>(context, listen: false).loadTasks();
@@ -124,13 +30,132 @@ class _Home_PageState extends State<Home_Page> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.blue,
         title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Expanded(child: Image.asset('rdplogo.png')),
-            const Text('Daily Planner'),
+            Expanded(child: Image.asset('assets/rdplogo.png', height: 80)),
+            const Text(
+              'Daily Planner',
+              style: TextStyle(
+                fontFamily: 'Caveat',
+                fontSize: 32,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TableCalendar(
+                    calendarFormat: CalendarFormat.month,
+                    focusedDay: DateTime.now(),
+                    firstDay: DateTime(2025),
+                    lastDay: DateTime(2026),
+                  ),
+                  Consumer<TaskProvider>(
+                    builder: (context, taskProvider, child) {
+                      return buildTaskItem(
+                        taskProvider.tasks,
+                        taskProvider.removeTask,
+                        taskProvider.updateTask,
+                      );
+                    },
+                  ),
+                  Consumer<TaskProvider>(
+                    builder: (context, taskProvider, child) {
+                      return buildAddTaskSection(nameController, () async {
+                        await taskProvider.addTask(nameController.text);
+                        nameController.clear();
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      drawer: Drawer(),
     );
   }
+}
+
+//Build the section for adding tasks
+Widget buildAddTaskSection(nameController, addTask) {
+  return Container(
+    decoration: BoxDecoration(color: Colors.white),
+    child: Row(
+      children: [
+        Expanded(
+          child: Container(
+            child: TextField(
+              maxLength: 32,
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Add Task',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+        ),
+        ElevatedButton(onPressed: addTask, child: Text('Add Task')),
+      ],
+    ),
+  );
+}
+
+//Widget that displays the task items on the UI
+Widget buildTaskItem(
+  List<Task> tasks,
+  Function(int) removeTasks,
+  Function(int, bool) updateTask,
+) {
+  return ListView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: tasks.length,
+    itemBuilder: (context, index) {
+      final task = tasks[index];
+      final isEven = index % 2 == 0;
+
+      return Padding(
+        padding: EdgeInsets.all(1.0),
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          tileColor: isEven ? Colors.blue : Colors.green,
+          leading: Icon(
+            task.completed ? Icons.check_circle : Icons.circle_outlined,
+          ),
+          title: Text(
+            task.name,
+            style: TextStyle(
+              decoration: task.completed ? TextDecoration.lineThrough : null,
+              fontSize: 22,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: task.completed,
+                onChanged: (value) => {updateTask(index, value!)},
+              ),
+              IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () => removeTasks(index),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
