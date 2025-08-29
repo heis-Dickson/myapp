@@ -1,13 +1,14 @@
-import 'dart:ffi';
+import 'dart:ffi'; // Import for FFI
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:myapp/models/tasks.dart';
-import 'package:myapp/services/task_service.dart';
-import 'package:myapp/providers/task_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore for database
+import 'package:flutter/material.dart'; // Flutter UI
+import 'package:provider/provider.dart'; // State management
+import 'package:table_calendar/table_calendar.dart'; // Calendar widget
+import 'package:myapp/models/tasks.dart'; // Task model 
+import 'package:myapp/services/task_service.dart'; // Task services
+import 'package:myapp/providers/task_provider.dart'; // Task provider
 
+// Main Home Page screen
 class Home_Page extends StatefulWidget {
   const Home_Page({super.key});
 
@@ -16,11 +17,14 @@ class Home_Page extends StatefulWidget {
 }
 
 class _Home_PageState extends State<Home_Page> {
+
+  // Controller to read and manage text input for new tasks
   final TextEditingController nameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Runs after widget is built, loads tasks from provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<TaskProvider>(context, listen: false).loadTasks();
     });
@@ -28,13 +32,16 @@ class _Home_PageState extends State<Home_Page> {
 
   @override
   Widget build(BuildContext context) {
+    // Main app layout
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
+            // App logo
             Expanded(child: Image.asset('assets/rdplogo.png', height: 80)),
+            // App title text
             const Text(
               'Daily Planner',
               style: TextStyle(
@@ -46,32 +53,40 @@ class _Home_PageState extends State<Home_Page> {
           ],
         ),
       ),
+
+      // Page body
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 children: [
+                  // Calendar widget
                   TableCalendar(
                     calendarFormat: CalendarFormat.month,
                     focusedDay: DateTime.now(),
                     firstDay: DateTime(2025),
                     lastDay: DateTime(2026),
                   ),
+
+                  // Show all tasks using TaskProvider
                   Consumer<TaskProvider>(
                     builder: (context, taskProvider, child) {
                       return buildTaskItem(
-                        taskProvider.tasks,
-                        taskProvider.removeTask,
-                        taskProvider.updateTask,
+                        taskProvider.tasks, // List of tasks
+                        taskProvider.removeTask, // Function to remove task
+                        taskProvider.updateTask, // Function to update task
                       );
                     },
                   ),
+
+                  // Section to add a new task
                   Consumer<TaskProvider>(
                     builder: (context, taskProvider, child) {
                       return buildAddTaskSection(nameController, () async {
-                        await taskProvider.addTask(nameController.text);
-                        nameController.clear();
+                        // When "Add Task" button is pressed
+                        await taskProvider.addTask(nameController.text); // Save new task
+                        nameController.clear(); // Clear input field
                       });
                     },
                   ),
@@ -81,22 +96,23 @@ class _Home_PageState extends State<Home_Page> {
           ),
         ],
       ),
-      drawer: Drawer(),
+      drawer: Drawer(), // Side menu (currently empty)
     );
   }
 }
 
-//Build the section for adding tasks
+// Builds the section for adding tasks
 Widget buildAddTaskSection(nameController, addTask) {
   return Container(
     decoration: BoxDecoration(color: Colors.white),
     child: Row(
       children: [
+        // Input field for task name
         Expanded(
           child: Container(
             child: TextField(
               maxLength: 32,
-              controller: nameController,
+              controller: nameController, // Stores typed task
               decoration: const InputDecoration(
                 labelText: 'Add Task',
                 border: OutlineInputBorder(),
@@ -104,25 +120,30 @@ Widget buildAddTaskSection(nameController, addTask) {
             ),
           ),
         ),
-        ElevatedButton(onPressed: addTask, child: Text('Add Task')),
+        // Button to add the task
+        ElevatedButton(
+          // onPressed: Adds the task when clicked
+          onPressed: addTask,
+          child: Text('Add Task'),
+        ),
       ],
     ),
   );
 }
 
-//Widget that displays the task items on the UI
+// Builds and displays the task items on screen
 Widget buildTaskItem(
-  List<Task> tasks,
-  Function(int) removeTasks,
-  Function(int, bool) updateTask,
+  List<Task> tasks, // List of tasks
+  Function(int) removeTasks, // Function to remove a task
+  Function(int, bool) updateTask, // Function to update (mark complete/incomplete)
 ) {
   return ListView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: tasks.length,
+    shrinkWrap: true, // Prevents taking full screen space
+    physics: const NeverScrollableScrollPhysics(), // Makes scroll inside parent
+    itemCount: tasks.length, // Number of tasks
     itemBuilder: (context, index) {
-      final task = tasks[index];
-      final isEven = index % 2 == 0;
+      final task = tasks[index]; // Current task
+      final isEven = index % 2 == 0; // Alternate colors for tasks
 
       return Padding(
         padding: EdgeInsets.all(1.0),
@@ -130,13 +151,15 @@ Widget buildTaskItem(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          tileColor: isEven ? Colors.blue : Colors.green,
+          tileColor: isEven ? Colors.blue : Colors.green, // Alternate color
           leading: Icon(
+            // Shows check icon if completed, else empty circle
             task.completed ? Icons.check_circle : Icons.circle_outlined,
           ),
           title: Text(
-            task.name,
+            task.name, // Task name text
             style: TextStyle(
+              // If completed, strike through text
               decoration: task.completed ? TextDecoration.lineThrough : null,
               fontSize: 22,
             ),
@@ -144,12 +167,16 @@ Widget buildTaskItem(
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Checkbox to mark task complete/incomplete
               Checkbox(
                 value: task.completed,
+                // When checkbox clicked → updates task status
                 onChanged: (value) => {updateTask(index, value!)},
               ),
+              // Delete button
               IconButton(
                 icon: Icon(Icons.delete),
+                // onPressed: Removes the selected task
                 onPressed: () => removeTasks(index),
               ),
             ],
